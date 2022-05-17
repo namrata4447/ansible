@@ -1,0 +1,178 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+
+  - name: update
+    apt: update_cache=yes
+    ignore_errors: yes
+
+    #Install Cassandra
+
+  - name: install JDK
+    shell: sudo apt install openjdk-8-jdk -y
+
+  - name: Install the apt-transport-https Package
+    shell: sudo apt install apt-transport-https
+
+  - name: Add Apache Cassandra Repository and Import GPG Key
+    shell: sudo sh -c 'echo "deb http://www.apache.org/dist/cassandra/debian 40x main" > /etc/apt/sources.list.d/cassandra.list'
+
+  - name: Installing wget
+    apt: name=wget state=latest
+
+  - name: wget command to pull the public key from the URL
+    shell: wget -q -O - https://www.apache.org/dist/cassandra/KEYS | sudo apt-key add -
+
+  - name: Run update
+    shell: sudo apt update
+
+  - name: Install Apache Cassandra
+    shell: sudo apt install cassandra -y
+
+    #Install Mysql
+
+  - name: Installing Mysql  and dependencies
+    package:
+       name: "{{item}}"
+       state: present
+       update_cache: yes
+    loop:
+       - mysql-server
+       - mysql-client
+       - python3-mysqldb
+       - libmysqlclient-dev
+    become: yes
+
+  - name: start and enable mysql service
+    service:
+       name: mysql
+       state: started
+       enabled: yes
+
+  - name: creating mysql user (medium_post)
+    mysql_user:
+       name: "namrata"
+       password: "namrata"
+       priv: '*.*:ALL'
+       host: '%'
+       state: present
+
+  - name: creating medium_db
+    mysql_db:
+       name: "namrata_db"
+       state: present
+
+  - name: Enable remote login to mysql
+    lineinfile:
+              path: /etc/mysql/mysql.conf.d/mysqld.cnf
+              regexp: 'bind-address'
+              line: 'bind-address = 0.0.0.0'
+              backup: yes
+
+              #handlers:
+  - name: Restart mysql
+    service:
+       name: mysql
+       state: restarted
+
+   #Install Redis
+
+  - name: Update
+    apt: update_cache=yes
+
+  - name: Installing Redis
+    apt: name=redis-server state=latest
+
+      #notify:
+      #- restart redis.service
+
+  - name: Restart Redis Server
+    service: name=redis state=restarted enabled=yes
+
+    #Install MongoDB
+
+  - name: Installing curl.
+    apt: name=curl state=latest
+
+  - name: import the public GPG key for the latest stable version of MongoDB
+    shell: curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+
+  - name: to double check that the key was added correctly
+    shell: apt-key list
+
+  - name: add to source list
+    shell: echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+
+    #- name: Run update
+    #shell: sudo apt update
+
+  - name: Install Mongodb
+    shell: sudo apt install mongodb-org -y
+
+  - name: start mongodb
+    shell: sudo systemctl start mongod.service
+
+ #Install Elasticsearch
+
+---
+- name: Install Elasticsearch on Ubuntu
+  hosts: all
+  become: true
+  gather_facts: False
+  tasks:
+
+    - name: Update apt repo and cache on all Ubuntu box
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages on servers
+      apt:
+        upgrade: dist
+        force_apt_get: yes
+
+    - name: Set hostname
+      hostname:
+        name: namrata.mansur.com
+
+    - name: Install Common packages
+      apt:
+        name:
+          - vim
+          - wget
+        state: latest
+
+    - name: Import the Elasticsearch PGP Key
+      shell: |
+        wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+      args:
+        warn: no
+
+    - name: Add repository defiition
+      copy:
+        dest: /etc/apt/sources.list.d/elastic-7.x.list
+        content: |
+          deb https://artifacts.elastic.co/packages/7.x/apt stable main
+
+    - name: Install the Elasticsearch package
+      apt:
+        name: elasticsearch
+        state: latest
+        update_cache: yes
+      notify:
+        - Start Elasticsearch
+        - Enable Elasticsearch
+
+     handlers:
+    - name: Start Elasticsearch
+      systemd:
+        name: elasticsearch
+        state: started
+
+    - name: Enable Elasticsearch
+      systemd:
+        name: elasticsearch
+        enabled: yes
+ 

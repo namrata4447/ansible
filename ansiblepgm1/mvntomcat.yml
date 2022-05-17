@@ -1,0 +1,114 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: update
+      apt: update_cache=yes
+      ignore_errors: yes
+
+    - name: Installing JDK.
+      apt: name=openjdk-8-jre
+
+    - name: Installing curl.
+      apt: name=curl state=latest
+
+    - name: Installing wget
+      apt: name=wget state=latest
+
+    - name: Installing unzip
+      apt: name=unzip state=latest
+
+    - name: Downloading Apache Tomcat zip
+      shell: wget https://dlcdn.apache.org/tomcat/tomcat-10/v10.0.20/bin/apache-tomcat-10.0.20.zip
+
+    - name: Extracting Apache Tomcat.
+      shell: unzip apache-tomcat-10.0.20.zip
+
+    - name: moving tomcat
+      shell: mv apache-tomcat-10.0.20 tomcat
+
+    - name: changing password
+      lineinfile:
+            path: /home/ubuntu/tomcat/conf/tomcat-users.xml
+            line: ' <user username="admin" password="admin123" roles="manager-gui,admin-gui,manager-script"/> </tomcat-users> '
+            insertbefore: </tomcat-users>
+
+    - name: host-manager
+      lineinfile:
+            path: /home/ubuntu/tomcat/webapps/host-manager/META-INF/context.xml
+            line: ' <!-- '
+            insertbefore: <Valve className="org.apache.catalina.valves.RemoteAddrValve"
+
+    - name: host-manager2
+      lineinfile:
+            path: /home/ubuntu/tomcat/webapps/host-manager/META-INF/context.xml
+            line: ' --> '
+            insertafter: allow="127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1" />.*
+
+    - name: manager
+      lineinfile:
+            path: /home/ubuntu/tomcat/webapps/manager/META-INF/context.xml
+            line: ' <!-- '
+            insertbefore: <Valve className="org.apache.catalina.valves.RemoteAddrValve"
+
+    - name: manager2
+      lineinfile:
+            path: /home/ubuntu/tomcat/webapps/manager/META-INF/context.xml
+            line: ' --> '
+            insertafter: allow="127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1" />.*
+
+    - name: installing maven
+      apt: name=maven state=latest
+
+    - name: installing dos2unix
+      command: sudo apt install dos2unix -y
+
+    - name: converting tomcat-users.xml
+      command: dos2unix /home/ubuntu/tomcat/conf/tomcat-users.xml
+
+    - name: converting host-manager context.xml
+      command: dos2unix /home/ubuntu/tomcat/webapps/host-manager/META-INF/context.xml
+
+    - name: converting manager context.xml
+      command: dos2unix /home/ubuntu/tomcat/webapps/manager/META-INF/context.xml
+
+    - name: from github
+      shell: git clone https://github.com/namrata4447/S3Maven.git
+      
+    - name: mvn clean install
+      command: "mvn clean install"
+      register: mvn_result
+      args:
+             chdir: /home/ubuntu/S3Maven/mavenwebapp/trucks
+
+    - name: "mvn clean task output"
+      debug:
+              var: mvn_result
+
+    - name: copy war file to tomcat
+      shell: cp ./S3Maven/mavenwebapp/trucks/target/trucks.war /home/ubuntu/tomcat/webapps
+
+    - name: executing permissions shutdown
+      shell: chmod 777 /home/ubuntu/tomcat/bin/shutdown.sh
+
+    - name: executing permissions startup
+      shell: chmod 777 /home/ubuntu/tomcat/bin/startup.sh
+
+    - name: executing permissions for catalina.sh
+      shell: chmod 777 /home/ubuntu/tomcat/bin/catalina.sh
+
+    - name: executing permissions for tomcat-users.xml
+      command: sudo chmod 777 /home/ubuntu/tomcat/conf/tomcat-users.xml
+
+    - name: executing permissions for host-manager context.xml
+      command: sudo chmod 777 /home/ubuntu/tomcat/webapps/host-manager/META-INF/context.xml
+
+    - name: executing permissions for manager context.xml
+      command: sudo chmod 777  /home/ubuntu/tomcat/webapps/manager/META-INF/context.xml
+
+    - name: Stoping Apache Tomcat service.
+      command: sudo nohup /home/ubuntu/tomcat/bin/shutdown.sh
+
+    - name: Starting Apache Tomcat service.
+      command: sudo nohup /home/ubuntu/tomcat/bin/startup.sh
+
