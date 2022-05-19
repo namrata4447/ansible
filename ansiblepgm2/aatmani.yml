@@ -1,0 +1,13 @@
+---
+#Create file in remote server
+
+- hosts: all
+  become: yes
+  tasks:
+  - name: Ansible create file with content
+    copy:
+      dest: "/home/ubuntu/aatmani.txt"
+      content: "Hello!! Bengaluru"
+      owner: root
+      group: root
+      mode: 755

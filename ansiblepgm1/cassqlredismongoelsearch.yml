@@ -135,7 +135,7 @@
 
     - name: Set hostname
       hostname:
-        name: namrata.mansur.com
+        name: ip-172-31-24-83
 
     - name: Install Common packages
       apt:
